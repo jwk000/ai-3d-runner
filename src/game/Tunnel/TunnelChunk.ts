@@ -129,21 +129,21 @@ export class TunnelChunk {
           vec2 uv = vUv;
           float t = uTime;
 
-          vec2 flowUv = uv;
-          flowUv.x += wave(uv, t * 0.9, 8.0, vec2(0.0, 1.0)) * 0.075;
-          flowUv.y += wave(uv, -t * 0.7, 6.5, vec2(1.0, 0.0)) * 0.055;
-          flowUv += vec2(
-            wave(uv, t * 0.45, 15.0, vec2(1.0, 1.0)),
-            wave(uv, -t * 0.4, 13.0, vec2(-1.0, 1.0))
-          ) * 0.02;
+          vec2 perturbUv = uv;
+          perturbUv.x += wave(uv, t * 0.22, 5.5, vec2(0.0, 1.0)) * 0.024;
+          perturbUv.y += wave(uv, -t * 0.18, 4.8, vec2(1.0, 0.0)) * 0.02;
+          perturbUv += vec2(
+            wave(uv, t * 0.12, 8.0, vec2(1.0, 1.0)),
+            wave(uv, -t * 0.1, 7.5, vec2(-1.0, 1.0))
+          ) * 0.008;
 
-          float currentA = wave(flowUv, t * 1.25, 18.0, vec2(1.0, 0.28));
-          float currentB = wave(flowUv, -t * 0.92, 12.0, vec2(-0.4, 1.0));
-          float currentC = wave(flowUv, t * 0.74, 26.0, vec2(0.7, 1.0));
-          float rippleA = ripple(flowUv, vec2(0.22, 0.34), 18.0, 1.7, t);
-          float rippleB = ripple(flowUv, vec2(0.78, 0.66), 16.0, 1.45, t);
-          float churn = sin((flowUv.x * 8.0 - flowUv.y * 10.5) + t * 1.5) * 0.5 + 0.5;
-          float bubble = sin((flowUv.x * 24.0 + flowUv.y * 17.0) - t * 3.2) * 0.5 + 0.5;
+          float currentA = wave(perturbUv, t * 0.38, 11.0, vec2(1.0, 0.25));
+          float currentB = wave(perturbUv, -t * 0.26, 8.5, vec2(-0.4, 1.0));
+          float currentC = wave(perturbUv, t * 0.18, 16.0, vec2(0.7, 1.0));
+          float rippleA = ripple(perturbUv, vec2(0.22, 0.34), 10.0, 0.62, t);
+          float rippleB = ripple(perturbUv, vec2(0.78, 0.66), 9.0, 0.48, t);
+          float churn = sin((perturbUv.x * 4.5 - perturbUv.y * 6.2) + t * 0.42) * 0.5 + 0.5;
+          float bubble = sin((perturbUv.x * 13.0 + perturbUv.y * 9.0) - t * 0.95) * 0.5 + 0.5;
 
           float depth = 0.5
             + currentA * 0.18
@@ -156,7 +156,7 @@ export class TunnelChunk {
 
           float crustLines = smoothstep(0.22, 0.82, currentA * 0.48 + currentB * 0.4 + churn * 0.3);
           float highlight = smoothstep(0.62, 0.98, currentC * 0.45 + rippleA * 0.28 + bubble * 0.27);
-          float magmaPulse = sin((flowUv.x + flowUv.y) * 16.0 - t * 1.6) * 0.5 + 0.5;
+          float magmaPulse = sin((perturbUv.x + perturbUv.y) * 10.0 - t * 0.52) * 0.5 + 0.5;
           float ember = smoothstep(0.58, 0.96, magmaPulse * 0.48 + highlight * 0.52);
           float crust = clamp(crustLines * 0.34 + (1.0 - depth) * 0.28 + churn * 0.08, 0.0, 0.7);
 
@@ -380,8 +380,8 @@ function laneRunLayout(start: LaneIndex, end: LaneIndex): { centerLane: LaneInde
   const endOffset = offsets[end];
   const center = (startOffset + endOffset) * 0.5;
   const centerLane = ((start + end) / 2) as LaneIndex;
-  const baseLaneWidth = laneSpan();
-  const width = Math.abs(startOffset - endOffset) + baseLaneWidth;
+  const laneCount = end - start + 1;
+  const width = laneCount * laneSpan();
   return {
     centerLane,
     centerOffset: center - offsets[centerLane],

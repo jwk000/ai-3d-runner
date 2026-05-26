@@ -143,6 +143,14 @@ export class Player {
     this.applySurfaceTransform();
   }
 
+  setSurfaceState(face: FaceIndex, lane: LaneIndex): void {
+    this.face = face;
+    this.lane = lane;
+    this.laneTargetX = CONFIG.tunnel.laneOffsets[lane];
+    this.laneCurrentX = this.laneTargetX;
+    this.applySurfaceTransform();
+  }
+
   trySetLane(lane: LaneIndex): void {
     this.lane = lane;
     this.laneTargetX = CONFIG.tunnel.laneOffsets[lane];
@@ -387,7 +395,7 @@ export class Player {
     }
 
     const speedFactor = clamp(
-      this.speed / CONFIG.player.startSpeed,
+      this.speed / Math.max(CONFIG.player.maxSpeed, 0.001),
       this.trailConfig.speedFactorMin,
       this.trailConfig.speedFactorMax,
     );

@@ -15,11 +15,11 @@ export const CONFIG = {
   },
   player: {
     // 开局前进速度
-    startSpeed: 6,
+    startSpeed: 0,
     // 允许达到的最大速度
     maxSpeed: 12,
-    // 每秒速度增量
-    accelPerSec: 2,
+    // 从静止加速到最大速度所需时长（秒）
+    accelDuration: 5,
     // 切换跑道的目标时长
     laneSwitchTime: 0.15,
     // 理想跳跃高度

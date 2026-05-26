@@ -12,6 +12,7 @@ import { GameState } from './GameState';
 import { Player } from './Player';
 import { TunnelRotator } from './Tunnel/Rotator';
 import { TunnelManager } from './Tunnel/TunnelManager';
+import { clamp, easeOutCubic, lerp } from '../util/math';
 
 export class Game {
   private engine = new Engine(60);
@@ -132,14 +133,11 @@ export class Game {
     const newLane: LaneIndex = dir === -1 ? 2 : 0;
     this.input.lock();
     this.player.beginRotationLock();
-    this.player.setFaceInstant(target);
-    this.player.trySetLane(newLane);
-    this.player.setSurfaceAngle(this.rotator.getAngle());
     this.rotator.startRotation(target, deltaAngle, () => {
       this.tunnel.currentFace = target;
       this.rotator.currentFace = target;
-      this.tunnel.setRotationZ(this.rotator.getAngle());
-      this.player.setSurfaceAngle(this.rotator.getAngle());
+      this.player.setSurfaceState(target, newLane);
+      this.syncRotationVisuals();
       this.player.endRotationLock();
       this.input.unlock();
       this.bus.emit('tunnel.rotated', { direction: dir, newFace: target });
@@ -198,17 +196,18 @@ export class Game {
     if (this.state.phase !== 'running') return;
     this.state.elapsed += dt;
 
-    const speedTarget = Math.min(
+    const accelProgress = clamp(this.state.elapsed / CONFIG.player.accelDuration, 0, 1);
+    const speedTarget = lerp(
+      CONFIG.player.startSpeed,
       CONFIG.player.maxSpeed,
-      CONFIG.player.startSpeed + CONFIG.player.accelPerSec * this.state.elapsed,
+      easeOutCubic(accelProgress),
     );
-    this.player.setSpeed(this.player.speed + (speedTarget - this.player.speed) * dt * 1.5);
+    this.player.setSpeed(speedTarget);
 
     this.player.update(dt);
     const advanceFactor = this.rotator.isActive() ? CONFIG.camera.rotateSlowFactor : 1;
     this.player.advance(dt * advanceFactor);
     this.rotator.update(dt);
-    this.player.setSurfaceAngle(this.rotator.getAngle());
 
     this.tunnel.maybeRebase(this.player);
     const playerZ = this.player.worldZ();
@@ -234,9 +233,14 @@ export class Game {
       this.hud.setStats(this.state.distance);
       return;
     }
-    if (this.rotator.isActive()) this.tunnel.setRotationZ(this.rotator.getAngle());
-    this.player.setSurfaceAngle(this.rotator.getAngle());
+    this.syncRotationVisuals();
     this.camera.update(_dt);
     this.hud.setStats(this.state.distance);
+  }
+
+  private syncRotationVisuals(): void {
+    const angle = this.rotator.getAngle();
+    this.tunnel.setRotationZ(angle);
+    this.player.setSurfaceAngle(angle);
   }
 }
