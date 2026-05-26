@@ -16,6 +16,9 @@ export class TunnelChunk {
   zEnd = 0;
   gaps: GapInstance[] = [];
 
+  private static readonly PORTAL_TIME_UNIFORM = { value: 0 };
+  private static readonly GUIDE_BAR_GEOMETRY = TunnelChunk.makeGuideBarGeometry();
+  private static readonly GUIDE_BAR_MATERIAL = TunnelChunk.makeGuideBarMaterial();
   private floorMesh: THREE.Mesh;
   private ceilMesh: THREE.Mesh;
   private leftMesh: THREE.Mesh;
@@ -29,7 +32,7 @@ export class TunnelChunk {
   };
   private static readonly BASE_COLOR = 0x8b9098;
   private static readonly LANE_LINE_COLOR = 0xb4bac4;
-  private static readonly GAP_MATERIAL = TunnelChunk.makeStarGapMaterial();
+  private static readonly GAP_MATERIAL = TunnelChunk.makePortalGapMaterial();
   private static readonly WALL_GEOS = TunnelChunk.makeWallGeometries();
 
   constructor() {
@@ -54,8 +57,8 @@ export class TunnelChunk {
     );
 
     this.group.add(this.floorMesh, this.ceilMesh, this.leftMesh, this.rightMesh);
-    this.addLightStrips();
     this.addLaneLines();
+    this.addGuideBars();
   }
 
   private static makeWallGeometries() {
@@ -82,97 +85,122 @@ export class TunnelChunk {
     return { floorGeo: floor, ceilGeo: ceil, leftGeo: left, rightGeo: right };
   }
 
-  private static makeStarGapMaterial(): THREE.MeshBasicMaterial {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+  private static makePortalGapMaterial(): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: TunnelChunk.PORTAL_TIME_UNIFORM,
+      },
+      vertexShader: `
+        varying vec2 vUv;
 
-    const bg = ctx.createRadialGradient(size * 0.5, size * 0.45, 0, size * 0.5, size * 0.55, size * 0.72);
-    bg.addColorStop(0, '#2d5f90');
-    bg.addColorStop(0.52, '#14314f');
-    bg.addColorStop(1, '#071425');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, size, size);
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
 
-    for (let i = 0; i < 170; i++) {
-      const x = Math.random() * size;
-      const y = Math.random() * size;
-      const r = Math.random() < 0.88 ? Math.random() * 1.1 + 0.35 : Math.random() * 2.4 + 1.1;
-      const alpha = Math.random() * 0.35 + 0.22;
-      ctx.fillStyle = `rgba(210,230,255,${alpha})`;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+        float wave(vec2 uv, float time, float scale, vec2 direction) {
+          vec2 dir = normalize(direction);
+          float phase = dot(uv, dir) * scale + time;
+          return sin(phase);
+        }
 
-    for (let i = 0; i < 7; i++) {
-      const x = Math.random() * size;
-      const y = Math.random() * size;
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, 32 + Math.random() * 24);
-      glow.addColorStop(0, 'rgba(118,202,255,0.28)');
-      glow.addColorStop(0.35, 'rgba(80,165,255,0.13)');
-      glow.addColorStop(1, 'rgba(30,20,90,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, size, size);
-    }
+        float ripple(vec2 uv, vec2 center, float freq, float speed, float time) {
+          float dist = length(uv - center);
+          return sin(dist * freq - time * speed);
+        }
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1.4, 1.4);
-    texture.anisotropy = 4;
+        vec3 palette(float depth, float crust, float ember) {
+          vec3 charred = vec3(0.06, 0.02, 0.01);
+          vec3 lava = vec3(0.48, 0.08, 0.01);
+          vec3 molten = vec3(0.9, 0.22, 0.02);
+          vec3 core = vec3(1.0, 0.78, 0.12);
+          vec3 color = mix(charred, lava, smoothstep(0.12, 0.62, depth));
+          color = mix(color, molten, smoothstep(0.48, 0.92, depth));
+          color += core * ember;
+          color -= vec3(0.12, 0.05, 0.02) * crust;
+          return color;
+        }
 
-    return new THREE.MeshBasicMaterial({
-      map: texture,
-      color: 0x86bfff,
+        void main() {
+          vec2 uv = vUv;
+          float t = uTime;
+
+          vec2 flowUv = uv;
+          flowUv.x += wave(uv, t * 0.9, 8.0, vec2(0.0, 1.0)) * 0.075;
+          flowUv.y += wave(uv, -t * 0.7, 6.5, vec2(1.0, 0.0)) * 0.055;
+          flowUv += vec2(
+            wave(uv, t * 0.45, 15.0, vec2(1.0, 1.0)),
+            wave(uv, -t * 0.4, 13.0, vec2(-1.0, 1.0))
+          ) * 0.02;
+
+          float currentA = wave(flowUv, t * 1.25, 18.0, vec2(1.0, 0.28));
+          float currentB = wave(flowUv, -t * 0.92, 12.0, vec2(-0.4, 1.0));
+          float currentC = wave(flowUv, t * 0.74, 26.0, vec2(0.7, 1.0));
+          float rippleA = ripple(flowUv, vec2(0.22, 0.34), 18.0, 1.7, t);
+          float rippleB = ripple(flowUv, vec2(0.78, 0.66), 16.0, 1.45, t);
+          float churn = sin((flowUv.x * 8.0 - flowUv.y * 10.5) + t * 1.5) * 0.5 + 0.5;
+          float bubble = sin((flowUv.x * 24.0 + flowUv.y * 17.0) - t * 3.2) * 0.5 + 0.5;
+
+          float depth = 0.5
+            + currentA * 0.18
+            + currentB * 0.14
+            + currentC * 0.12
+            + rippleA * 0.06
+            + rippleB * 0.05
+            + churn * 0.1;
+          depth = clamp(depth, 0.0, 1.0);
+
+          float crustLines = smoothstep(0.22, 0.82, currentA * 0.48 + currentB * 0.4 + churn * 0.3);
+          float highlight = smoothstep(0.62, 0.98, currentC * 0.45 + rippleA * 0.28 + bubble * 0.27);
+          float magmaPulse = sin((flowUv.x + flowUv.y) * 16.0 - t * 1.6) * 0.5 + 0.5;
+          float ember = smoothstep(0.58, 0.96, magmaPulse * 0.48 + highlight * 0.52);
+          float crust = clamp(crustLines * 0.34 + (1.0 - depth) * 0.28 + churn * 0.08, 0.0, 0.7);
+
+          vec3 color = palette(depth, crust, ember * 0.34);
+          color += vec3(1.0, 0.42, 0.04) * highlight * 0.24;
+          color += vec3(1.0, 0.88, 0.32) * ember * 0.16;
+
+          float alpha = 0.9 + ember * 0.02;
+          gl_FragColor = vec4(color, alpha);
+        }
+      `,
       transparent: true,
-      opacity: 0.82,
       side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
+      toneMapped: false,
     });
   }
 
-  private static makeWallMaterial(): THREE.MeshStandardMaterial {
-    return new THREE.MeshStandardMaterial({
+  private static updatePortalTime(): void {
+    TunnelChunk.PORTAL_TIME_UNIFORM.value = performance.now() * 0.001;
+  }
+
+  private static makeWallMaterial(): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
       color: TunnelChunk.BASE_COLOR,
-      roughness: 0.88,
-      metalness: 0.02,
     });
   }
 
-  private addLightStrips(): void {
-    const size = CONFIG.tunnel.size;
-    const length = CONFIG.tunnel.chunkLength;
-    const half = size / 2;
-    const stripMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0x9fc8ff,
-      emissiveIntensity: 2.2,
-      roughness: 0.25,
+  private static makeGuideBarGeometry(): THREE.BoxGeometry {
+    const thickness = 0.08;
+    const length = CONFIG.tunnel.chunkLength * 0.96;
+    return new THREE.BoxGeometry(thickness, thickness, length);
+  }
+
+  private static makeGuideBarMaterial(): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({
+      color: 0x9ed8ff,
+      emissive: 0x49b7ff,
+      emissiveIntensity: 2.6,
+      roughness: 0.2,
+      metalness: 0.04,
+      toneMapped: false,
     });
-    const stripWidth = 0.18;
-    const stripThickness = 0.04;
-    const inset = 0.002;
-    const stripOffset = stripWidth / 2 + 0.02;
-    const horizGeo = new THREE.BoxGeometry(stripWidth, stripThickness, length * 0.98);
-    const vertGeo = new THREE.BoxGeometry(stripThickness, stripWidth, length * 0.98);
-
-    const corners: Array<{ sx: 1 | -1; sy: 1 | -1 }> = [
-      { sx: 1, sy: 1 },
-      { sx: -1, sy: 1 },
-      { sx: 1, sy: -1 },
-      { sx: -1, sy: -1 },
-    ];
-
-    for (const { sx, sy } of corners) {
-      const onHoriz = new THREE.Mesh(horizGeo, stripMat);
-      onHoriz.position.set(sx * (half - stripOffset), sy * (half - inset), length / 2);
-      const onVert = new THREE.Mesh(vertGeo, stripMat);
-      onVert.position.set(sx * (half - inset), sy * (half - stripOffset), length / 2);
-      this.group.add(onHoriz, onVert);
-    }
   }
 
   private addLaneLines(): void {
@@ -187,24 +215,45 @@ export class TunnelChunk {
     const lineWidth = 0.06;
     const inset = 0.003;
     const dividerPositions = [-1.5, 1.5];
-    const horizLineGeo = new THREE.PlaneGeometry(lineWidth, length * 0.98);
-    const vertLineGeo = new THREE.PlaneGeometry(lineWidth, length * 0.98);
+    const floorCeilLineGeo = new THREE.PlaneGeometry(lineWidth, length * 0.98);
+    const sideWallLineGeo = new THREE.PlaneGeometry(length * 0.98, lineWidth);
 
     for (const d of dividerPositions) {
-      const floorLine = new THREE.Mesh(horizLineGeo, lineMat);
+      const floorLine = new THREE.Mesh(floorCeilLineGeo, lineMat);
       floorLine.rotation.x = -Math.PI / 2;
       floorLine.position.set(d, -half + inset, length / 2);
-      const ceilLine = new THREE.Mesh(horizLineGeo, lineMat);
+      const ceilLine = new THREE.Mesh(floorCeilLineGeo, lineMat);
       ceilLine.rotation.x = Math.PI / 2;
-      ceilLine.position.set(-d, half - inset, length / 2);
-      const rightLine = new THREE.Mesh(vertLineGeo, lineMat);
+      ceilLine.position.set(d, half - inset, length / 2);
+      const rightLine = new THREE.Mesh(sideWallLineGeo, lineMat);
       rightLine.rotation.y = -Math.PI / 2;
       rightLine.position.set(half - inset, d, length / 2);
-      const leftLine = new THREE.Mesh(vertLineGeo, lineMat);
+      const leftLine = new THREE.Mesh(sideWallLineGeo, lineMat);
       leftLine.rotation.y = Math.PI / 2;
-      leftLine.position.set(-half + inset, -d, length / 2);
+      leftLine.position.set(-half + inset, d, length / 2);
 
       this.group.add(floorLine, ceilLine, rightLine, leftLine);
+    }
+  }
+
+  private addGuideBars(): void {
+    const half = CONFIG.tunnel.size / 2;
+    const zCenter = CONFIG.tunnel.chunkLength / 2;
+    const inset = 0.06;
+    const corners: Array<{ x: number; y: number }> = [
+      { x: -half + inset, y: -half + inset },
+      { x: half - inset, y: -half + inset },
+      { x: half - inset, y: half - inset },
+      { x: -half + inset, y: half - inset },
+    ];
+
+    for (const corner of corners) {
+      const bar = new THREE.Mesh(
+        TunnelChunk.GUIDE_BAR_GEOMETRY,
+        TunnelChunk.GUIDE_BAR_MATERIAL,
+      );
+      bar.position.set(corner.x, corner.y, zCenter);
+      this.group.add(bar);
     }
   }
 
@@ -224,26 +273,29 @@ export class TunnelChunk {
     const meshes: THREE.Mesh[] = [];
     const zCenter = (g.zStart + g.zEnd) / 2;
 
-    for (let lane = 0 as LaneIndex; lane < CONFIG.tunnel.laneCount; lane = (lane + 1) as LaneIndex) {
-      if (!g.laneMask[lane]) continue;
-      const { x, y } = lanePosition(g.face, lane);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(laneSpan(), len), pitMat);
+    for (const run of gapLaneRuns(g.laneMask)) {
+      const { centerLane, centerOffset, width } = laneRunLayout(run.start, run.end);
+      const { x, y } = lanePosition(g.face, centerLane);
+      const geometry = new THREE.PlaneGeometry(width, len);
+      scaleGapUv(geometry, width, len);
+      const mesh = new THREE.Mesh(geometry, pitMat);
+      mesh.onBeforeRender = () => TunnelChunk.updatePortalTime();
       switch (g.face) {
         case 0:
           mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(x, -half + pitInset, zCenter);
+          mesh.position.set(x + centerOffset, -half + pitInset, zCenter);
           break;
         case 1:
           mesh.rotation.y = -Math.PI / 2;
-          mesh.position.set(half - pitInset, y, zCenter);
+          mesh.position.set(half - pitInset, y + centerOffset, zCenter);
           break;
         case 2:
           mesh.rotation.x = Math.PI / 2;
-          mesh.position.set(x, half - pitInset, zCenter);
+          mesh.position.set(x - centerOffset, half - pitInset, zCenter);
           break;
         case 3:
           mesh.rotation.y = Math.PI / 2;
-          mesh.position.set(-half + pitInset, y, zCenter);
+          mesh.position.set(-half + pitInset, y - centerOffset, zCenter);
           break;
       }
       this.group.add(mesh);
@@ -261,7 +313,10 @@ export class TunnelChunk {
 
   reset(): void {
     for (const g of this.gaps) {
-      for (const mesh of g.meshes) this.group.remove(mesh);
+      for (const mesh of g.meshes) {
+        this.group.remove(mesh);
+        mesh.geometry.dispose();
+      }
     }
     this.gaps = [];
   }
@@ -279,10 +334,10 @@ export class TunnelChunk {
   setDebugColors(enable: boolean): void {
     const base = TunnelChunk.BASE_COLOR;
     const debug = TunnelChunk.DEBUG_COLORS;
-    const floorMat = this.floorMesh.material as THREE.MeshStandardMaterial;
-    const ceilMat = this.ceilMesh.material as THREE.MeshStandardMaterial;
-    const leftMat = this.leftMesh.material as THREE.MeshStandardMaterial;
-    const rightMat = this.rightMesh.material as THREE.MeshStandardMaterial;
+    const floorMat = this.floorMesh.material as THREE.MeshBasicMaterial;
+    const ceilMat = this.ceilMesh.material as THREE.MeshBasicMaterial;
+    const leftMat = this.leftMesh.material as THREE.MeshBasicMaterial;
+    const rightMat = this.rightMesh.material as THREE.MeshBasicMaterial;
     if (enable) {
       floorMat.color.setHex(debug.floor);
       rightMat.color.setHex(debug.right);
@@ -317,4 +372,50 @@ function laneSpan(): number {
   const laneWidth = Math.abs(offsets[0] - offsets[1]);
   const edgeMargin = Math.max(0.5, (CONFIG.tunnel.size - laneWidth * CONFIG.tunnel.laneCount) / 2);
   return laneWidth - edgeMargin * 0.35;
+}
+
+function laneRunLayout(start: LaneIndex, end: LaneIndex): { centerLane: LaneIndex; centerOffset: number; width: number } {
+  const offsets = CONFIG.tunnel.laneOffsets;
+  const startOffset = offsets[start];
+  const endOffset = offsets[end];
+  const center = (startOffset + endOffset) * 0.5;
+  const centerLane = ((start + end) / 2) as LaneIndex;
+  const baseLaneWidth = laneSpan();
+  const width = Math.abs(startOffset - endOffset) + baseLaneWidth;
+  return {
+    centerLane,
+    centerOffset: center - offsets[centerLane],
+    width,
+  };
+}
+
+function gapLaneRuns(mask: LaneMask): Array<{ start: LaneIndex; end: LaneIndex }> {
+  const runs: Array<{ start: LaneIndex; end: LaneIndex }> = [];
+  let lane = 0;
+  while (lane < CONFIG.tunnel.laneCount) {
+    if (!mask[lane as LaneIndex]) {
+      lane++;
+      continue;
+    }
+    const start = lane as LaneIndex;
+    let end = start;
+    lane++;
+    while (lane < CONFIG.tunnel.laneCount && mask[lane as LaneIndex]) {
+      end = lane as LaneIndex;
+      lane++;
+    }
+    runs.push({ start, end });
+  }
+  return runs;
+}
+
+function scaleGapUv(geometry: THREE.PlaneGeometry, width: number, length: number): void {
+  const uv = geometry.getAttribute('uv');
+  const laneUnit = Math.max(0.001, laneSpan());
+  const widthRepeat = Math.max(1, width / laneUnit);
+  const lengthRepeat = Math.max(1, length / 5);
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) * widthRepeat, uv.getY(i) * lengthRepeat);
+  }
+  uv.needsUpdate = true;
 }

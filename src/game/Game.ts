@@ -57,10 +57,10 @@ export class Game {
   private showMenu(): void {
     this.state.phase = 'menu';
     this.hud.showBanner(
-      'Gap Runner',
-      `<p>Run forward, read the gaps, jump and rotate to survive.</p>
-       <p style="opacity:.6;font-size:14px;margin-top:10px">← / → switch lane &nbsp;·&nbsp; edge + airborne: rotate tunnel<br/>SPACE jump &nbsp;·&nbsp; ESC pause</p>`,
-      'Start',
+      '空隙疾跑',
+      `<p>向前奔跑，观察空洞，跳跃并旋转隧道，坚持更久。</p>
+       <p style="opacity:.6;font-size:14px;margin-top:10px">← / → 切换跑道 &nbsp;·&nbsp; 边缘起跳后：旋转隧道<br/>SPACE 跳跃 &nbsp;·&nbsp; ESC 暂停</p>`,
+      '开始',
       () => this.beginRun(),
     );
   }
@@ -119,7 +119,7 @@ export class Game {
 
   private requestRotation(dir: -1 | 1): void {
     if (this.player.isGrounded) {
-      this.hud.flashToast('JUMP TO ROTATE');
+      this.hud.flashToast('起跳后才能旋转');
       return;
     }
     this.beginRotation(dir);
@@ -154,7 +154,7 @@ export class Game {
   private pause(): void {
     this.state.phase = 'paused';
     this.bus.emit('game.pause', { paused: true });
-    this.hud.showBanner('Paused', 'Take a breath.', 'Resume', () => this.resume());
+    this.hud.showBanner('已暂停', '先缓一口气。', '继续', () => this.resume());
   }
 
   private resume(): void {
@@ -168,11 +168,11 @@ export class Game {
     this.state.bestDistance = Math.max(this.state.bestDistance, this.state.distance);
     this.bus.emit('game.over', { distance: this.state.distance });
     this.hud.showBanner(
-      'Game Over',
+      '游戏结束',
       `<p>${reason}</p>
-       <p>Distance <strong>${this.state.distance.toFixed(0)}m</strong></p>
-       <p style="opacity:.6">Best: ${this.state.bestDistance.toFixed(0)}m</p>`,
-      'Run Again',
+       <p>距离 <strong>${this.state.distance.toFixed(0)}m</strong></p>
+       <p style="opacity:.6">最佳：${this.state.bestDistance.toFixed(0)}m</p>`,
+      '再来一局',
       () => this.beginRun(),
     );
   }
@@ -190,7 +190,7 @@ export class Game {
     if (this.state.phase === 'falling') {
       if (this.player.fall(dt)) {
         this.input.unlock();
-        this.gameOver('You fell out of the tunnel.');
+        this.gameOver('你掉出了隧道。');
       }
       this.camera.update(dt);
       return;

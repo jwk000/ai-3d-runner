@@ -90,7 +90,7 @@ export class HUD {
       create: () => {
         const el = document.createElement('div');
         el.id = 'loading';
-        el.textContent = 'Booting tunnel…';
+        el.textContent = '隧道加载中…';
         return el;
       },
     });
@@ -111,7 +111,7 @@ export class HUD {
 
         const pill = document.createElement('div');
         pill.className = 'pill';
-        pill.append('DIST');
+        pill.append('距离');
 
         const dist = document.createElement('strong');
         dist.id = 'hud-dist';
@@ -122,7 +122,7 @@ export class HUD {
         const help = document.createElement('div');
         help.className = 'hud-help';
         help.innerHTML =
-          '<kbd>←</kbd> <kbd>→</kbd> switch lane / rotate tunnel · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause';
+          '<kbd>←</kbd> <kbd>→</kbd> 切换跑道 / 旋转隧道 · <kbd>Space</kbd> 跳跃 · <kbd>Esc</kbd> 暂停';
 
         el.append(top, help);
         return el;
@@ -138,7 +138,7 @@ export class HUD {
 
       const pill = top.querySelector('.pill') ?? top.appendChild(document.createElement('div'));
       if (pill instanceof HTMLDivElement && !pill.className) pill.className = 'pill';
-      if (!pill.textContent?.includes('DIST')) pill.append('DIST');
+      if (!pill.textContent?.includes('距离')) pill.append('距离');
 
       distEl = document.createElement('strong');
       distEl.id = 'hud-dist';
@@ -159,7 +159,7 @@ export class HUD {
 
         const title = document.createElement('h1');
         title.id = 'banner-title';
-        title.textContent = 'Gap Runner';
+        title.textContent = '空隙疾跑';
 
         const sub = document.createElement('p');
         sub.id = 'banner-sub';
@@ -168,7 +168,7 @@ export class HUD {
         cta.id = 'banner-cta';
         cta.className = 'cta';
         cta.type = 'button';
-        cta.textContent = 'Start';
+        cta.textContent = '开始';
 
         el.append(title, sub, cta);
         return el;
@@ -205,7 +205,7 @@ export class HUD {
       button.id = 'banner-cta';
       button.className = 'cta';
       button.type = 'button';
-      button.textContent = 'Start';
+      button.textContent = '开始';
       bannerEl.appendChild(button);
     }
     return button;

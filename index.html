@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gap Runner — Minimal Tunnel Runner</title>
+    <title>空隙疾跑 — 极简隧道跑酷</title>
     <style>
       :root {
         color-scheme: dark;
@@ -144,20 +144,20 @@
   </head>
   <body>
     <div id="app">
-      <div id="loading">Booting tunnel…</div>
+      <div id="loading">隧道加载中…</div>
       <div id="hud" style="display: none">
         <div class="hud-top">
-          <div class="pill">DIST<strong id="hud-dist">0m</strong></div>
+          <div class="pill">距离<strong id="hud-dist">0m</strong></div>
         </div>
         <div class="hud-help">
-          <kbd>←</kbd> <kbd>→</kbd> switch lane / rotate tunnel · <kbd>Space</kbd> jump ·
-          <kbd>Esc</kbd> pause
+          <kbd>←</kbd> <kbd>→</kbd> 切换跑道 / 旋转隧道 · <kbd>Space</kbd> 跳跃 ·
+          <kbd>Esc</kbd> 暂停
         </div>
       </div>
       <div id="banner">
-        <h1 id="banner-title">Paused</h1>
+        <h1 id="banner-title">已暂停</h1>
         <p id="banner-sub"></p>
-        <button class="cta" id="banner-cta" type="button">Resume</button>
+        <button class="cta" id="banner-cta" type="button">继续</button>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

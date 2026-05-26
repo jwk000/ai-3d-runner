@@ -1,7 +1,7 @@
 import type { FaceIndex, LaneIndex } from '../config';
 import type { GapInstance } from './Tunnel/TunnelChunk';
 
-const GAP_COLLISION_INSET = 0.75;
+const GAP_COLLISION_INSET = 1;
 
 export interface PlayerStateForCollision {
   faceIndex: FaceIndex;

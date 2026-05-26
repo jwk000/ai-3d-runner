@@ -13,11 +13,11 @@ try {
   if (loading) {
     if (e instanceof RendererInitError) {
       loading.innerHTML = `<div style="text-align:center;line-height:1.6">
-        <div style="font-size:18px;letter-spacing:.1em;color:#ff5a6e">WebGL unavailable</div>
+        <div style="font-size:18px;letter-spacing:.1em;color:#ff5a6e">WebGL 不可用</div>
         <div style="font-size:13px;opacity:.7;margin-top:8px">${e.message}</div>
       </div>`;
     } else {
-      loading.textContent = `Boot failure: ${(e as Error).message ?? String(e)}`;
+      loading.textContent = `启动失败：${(e as Error).message ?? String(e)}`;
     }
   }
   console.error(e);
