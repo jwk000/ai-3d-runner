@@ -22,9 +22,11 @@ export interface GenerateOptions {
   currentFace: FaceIndex;
 }
 
-const GAP_MIN_LEN = 2;
-const GAP_MAX_LEN = 3.5;
-const GAP_MIN_SPACING = 8;
+const FACES: readonly FaceIndex[] = [0, 1, 2, 3];
+const GAP_MIN_LEN = 4.2;
+const GAP_MAX_LEN = 6.1;
+const GAP_MAX_SPACING = 5;
+const GAP_MIN_SPACING = 1.5;
 const TEACHING_MASKS: LaneMask[] = [
   [true, false, false],
   [false, true, false],
@@ -55,9 +57,12 @@ export class ChunkGenerator {
   private fillGapChunk(data: ChunkData, opts: GenerateOptions): void {
     const isTeaching = opts.zStart < CONFIG.tunnel.chunkLength * 2;
     const diff = opts.difficulty;
-    const baseCount = isTeaching ? 1 : this.rng.bool(0.45 + diff * 0.25) ? 2 : 1;
-    const gapCount = this.rng.bool(0.15 + diff * 0.2) ? baseCount + 1 : baseCount;
-    this.placeRandomGaps(data, opts.currentFace, gapCount, diff, isTeaching);
+    for (const face of FACES) {
+      const countRoll = diff * 3.15 + this.rng.range(-0.15, 0.75);
+      const baseCount = isTeaching ? 1 : Math.max(1, Math.min(4, 1 + Math.floor(countRoll)));
+      const gapCount = isTeaching || baseCount >= 4 || !this.rng.bool(0.18 + diff * 0.3) ? baseCount : baseCount + 1;
+      this.placeRandomGaps(data, face, gapCount, diff, isTeaching, face === opts.currentFace);
+    }
   }
 
   private placeRandomGaps(
@@ -66,23 +71,30 @@ export class ChunkGenerator {
     count: number,
     difficulty: number,
     isTeaching: boolean,
+    isCurrentFace: boolean,
   ): void {
-    const margin = data.zStart === 0 ? 10 : 4;
+    const frontMargin = data.zStart === 0 ? 18 : 4;
+    const backMargin = 4;
+    const spacing = GAP_MAX_SPACING + (GAP_MIN_SPACING - GAP_MAX_SPACING) * difficulty;
     let attempts = 0;
     let placed = 0;
 
-    while (placed < count && attempts < count * 8) {
+    while (placed < count && attempts < count * 20) {
       attempts++;
-      const len = GAP_MIN_LEN + this.rng.range(0, GAP_MAX_LEN - GAP_MIN_LEN);
-      const zStart = margin + this.rng.range(0, data.length - margin * 2 - len);
+      const minLen = GAP_MIN_LEN + difficulty * 1.5;
+      const maxLen = GAP_MAX_LEN + difficulty * 5.4;
+      const len = this.rng.range(minLen, maxLen);
+      const zStart = frontMargin + this.rng.range(0, data.length - frontMargin - backMargin - len);
       const zEnd = zStart + len;
       const conflict = data.gaps.some(
-        (g) => !(zEnd + GAP_MIN_SPACING < g.zStart || zStart > g.zEnd + GAP_MIN_SPACING),
+        (g) =>
+          g.face === currentFace &&
+          !(zEnd + spacing < g.zStart || zStart > g.zEnd + spacing),
       );
       if (conflict) continue;
       data.gaps.push({
         face: currentFace,
-        laneMask: this.pickLaneMask(difficulty, isTeaching, placed),
+        laneMask: this.pickLaneMask(difficulty, isTeaching, placed, isCurrentFace),
         zStart,
         zEnd,
       });
@@ -90,8 +102,16 @@ export class ChunkGenerator {
     }
   }
 
-  private pickLaneMask(difficulty: number, isTeaching: boolean, gapIndex: number): LaneMask {
-    if (isTeaching) return this.rng.pick(TEACHING_MASKS);
+  private pickLaneMask(
+    difficulty: number,
+    isTeaching: boolean,
+    gapIndex: number,
+    isCurrentFace: boolean,
+  ): LaneMask {
+    if (isTeaching && isCurrentFace) return this.rng.pick(TEACHING_MASKS);
+    if (gapIndex === 0 && !isCurrentFace && this.rng.bool(0.35 + difficulty * 0.25)) {
+      return this.rng.pick(ROTATION_MASKS);
+    }
     if (gapIndex === 0 && this.rng.bool(0.2 + difficulty * 0.25)) {
       return this.rng.pick(ROTATION_MASKS);
     }

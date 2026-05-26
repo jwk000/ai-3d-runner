@@ -1,4 +1,5 @@
 import { CONFIG, type FaceIndex, type LaneIndex } from '../config';
+import { AudioManager } from '../audio/AudioManager';
 import { Engine } from '../engine/Engine';
 import { Input } from '../engine/Input';
 import { Renderer } from '../engine/Renderer';
@@ -16,7 +17,7 @@ export class Game {
   private engine = new Engine(60);
   private renderer: Renderer;
   private input = new Input();
-  private hud = new HUD();
+  private hud: HUD;
   private bus = new EventBus<GameEvents>();
   private state = new GameState();
   private rng: PRNG;
@@ -24,17 +25,21 @@ export class Game {
   private tunnel: TunnelManager;
   private rotator = new TunnelRotator();
   private camera: FollowCamera;
+  private audio: AudioManager;
   private queuedDir: -1 | 1 | null = null;
 
   constructor(host: HTMLElement) {
+    this.hud = new HUD(host);
     this.renderer = new Renderer(host, CONFIG.camera.fovNormal);
     const seed = (Math.random() * 2 ** 31) >>> 0;
     this.rng = new PRNG(seed);
     this.tunnel = new TunnelManager(this.rng);
     this.player = new Player();
     this.renderer.scene.add(this.tunnel.root);
-    this.tunnel.root.add(this.player.root);
+    this.renderer.scene.add(this.player.root);
     this.camera = new FollowCamera(this.renderer.camera, this.player.root);
+    this.audio = new AudioManager(this.bus);
+    this.hud.setButtonClickSound(() => this.audio.playClick());
 
     this.engine.fixedUpdate = (dt) => this.fixedUpdate(dt);
     this.engine.lateUpdate = (dt) => this.lateUpdate(dt);
@@ -63,12 +68,12 @@ export class Game {
   private beginRun(): void {
     this.state.reset();
     this.state.phase = 'running';
-    this.player.root.position.set(CONFIG.tunnel.laneOffsets[1], -CONFIG.tunnel.size / 2, 4);
-    this.player.setLaneInstant(1);
-    this.player.setSpeed(CONFIG.player.startSpeed);
+    this.queuedDir = null;
     this.tunnel.currentFace = 0;
-    this.rotator.currentFace = 0;
+    this.rotator.reset(0, 0);
     this.tunnel.setRotationZ(0);
+    this.input.unlock();
+    this.player.resetForRun(12);
     this.tunnel.init();
     this.bus.emit('game.start', {});
   }
@@ -127,11 +132,14 @@ export class Game {
     const newLane: LaneIndex = dir === -1 ? 2 : 0;
     this.input.lock();
     this.player.beginRotationLock();
+    this.player.setFaceInstant(target);
     this.player.trySetLane(newLane);
+    this.player.setSurfaceAngle(this.rotator.getAngle());
     this.rotator.startRotation(target, deltaAngle, () => {
       this.tunnel.currentFace = target;
       this.rotator.currentFace = target;
       this.tunnel.setRotationZ(this.rotator.getAngle());
+      this.player.setSurfaceAngle(this.rotator.getAngle());
       this.player.endRotationLock();
       this.input.unlock();
       this.bus.emit('tunnel.rotated', { direction: dir, newFace: target });
@@ -169,7 +177,24 @@ export class Game {
     );
   }
 
+  private beginFallout(): void {
+    this.state.phase = 'falling';
+    this.queuedDir = null;
+    this.input.lock();
+    this.player.velocityY = -2;
+    this.player.isGrounded = false;
+    this.bus.emit('player.fallout', {});
+  }
+
   private fixedUpdate(dt: number): void {
+    if (this.state.phase === 'falling') {
+      if (this.player.fall(dt)) {
+        this.input.unlock();
+        this.gameOver('You fell out of the tunnel.');
+      }
+      this.camera.update(dt);
+      return;
+    }
     if (this.state.phase !== 'running') return;
     this.state.elapsed += dt;
 
@@ -183,6 +208,7 @@ export class Game {
     const advanceFactor = this.rotator.isActive() ? CONFIG.camera.rotateSlowFactor : 1;
     this.player.advance(dt * advanceFactor);
     this.rotator.update(dt);
+    this.player.setSurfaceAngle(this.rotator.getAngle());
 
     this.tunnel.maybeRebase(this.player);
     const playerZ = this.player.worldZ();
@@ -190,7 +216,7 @@ export class Game {
     this.tunnel.update(playerZ, this.state.difficulty());
 
     const ps: PlayerStateForCollision = {
-      faceIndex: this.tunnel.currentFace,
+      faceIndex: this.player.face,
       lane: this.player.lane,
       zWorld: playerZ,
       isAirborne: !this.player.isGrounded,
@@ -198,17 +224,18 @@ export class Game {
     };
 
     if (checkGap(this.tunnel.visibleGaps(), ps)) {
-      this.bus.emit('player.fallout', {});
-      this.gameOver('You fell out of the tunnel.');
+      this.beginFallout();
     }
   }
 
   private lateUpdate(_dt: number): void {
+    if (this.state.phase === 'falling') {
+      this.camera.update(_dt);
+      this.hud.setStats(this.state.distance);
+      return;
+    }
     if (this.rotator.isActive()) this.tunnel.setRotationZ(this.rotator.getAngle());
-
-    const stableAngle = this.rotator.getStableAngle();
-    const liveAngle = this.rotator.getAngle();
-    this.player.visualRoot.rotation.z = stableAngle - liveAngle + this.player.tiltZ;
+    this.player.setSurfaceAngle(this.rotator.getAngle());
     this.camera.update(_dt);
     this.hud.setStats(this.state.distance);
   }

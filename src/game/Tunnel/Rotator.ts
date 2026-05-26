@@ -12,6 +12,16 @@ export class TunnelRotator {
 
   currentFace: FaceIndex = 0;
 
+  reset(face: FaceIndex = 0, angle = 0): void {
+    this.angle = angle;
+    this.from = angle;
+    this.to = angle;
+    this.elapsed = 0;
+    this.active = false;
+    this.onComplete = null;
+    this.currentFace = face;
+  }
+
   startRotation(targetFace: FaceIndex, deltaAngle: number, onComplete: () => void): void {
     this.from = this.angle;
     this.to = this.angle + deltaAngle;

@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && vite build --mode pages",
     "preview": "vite preview",
+    "preview:pages": "pnpm build:pages && vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -27,31 +27,30 @@ export class TunnelChunk {
     ceil: 0x3a7bd5,
     left: 0xffd24a,
   };
-  private static readonly BASE_COLOR = 0xc8ccd2;
-  private static readonly LANE_LINE_COLOR = 0x8a8e94;
-  private static readonly GAP_COLOR = 0x0a0c10;
+  private static readonly BASE_COLOR = 0x8b9098;
+  private static readonly LANE_LINE_COLOR = 0xb4bac4;
+  private static readonly GAP_MATERIAL = TunnelChunk.makeStarGapMaterial();
   private static readonly WALL_GEOS = TunnelChunk.makeWallGeometries();
 
   constructor() {
     this.group = new THREE.Group();
 
     const { floorGeo, ceilGeo, leftGeo, rightGeo } = TunnelChunk.WALL_GEOS;
-    const base = TunnelChunk.BASE_COLOR;
     this.floorMesh = new THREE.Mesh(
       floorGeo,
-      new THREE.MeshStandardMaterial({ color: base, roughness: 0.85 }),
+      TunnelChunk.makeWallMaterial(),
     );
     this.ceilMesh = new THREE.Mesh(
       ceilGeo,
-      new THREE.MeshStandardMaterial({ color: base, roughness: 0.85 }),
+      TunnelChunk.makeWallMaterial(),
     );
     this.leftMesh = new THREE.Mesh(
       leftGeo,
-      new THREE.MeshStandardMaterial({ color: base, roughness: 0.85 }),
+      TunnelChunk.makeWallMaterial(),
     );
     this.rightMesh = new THREE.Mesh(
       rightGeo,
-      new THREE.MeshStandardMaterial({ color: base, roughness: 0.85 }),
+      TunnelChunk.makeWallMaterial(),
     );
 
     this.group.add(this.floorMesh, this.ceilMesh, this.leftMesh, this.rightMesh);
@@ -81,6 +80,66 @@ export class TunnelChunk {
     right.translate(half, 0, length / 2);
 
     return { floorGeo: floor, ceilGeo: ceil, leftGeo: left, rightGeo: right };
+  }
+
+  private static makeStarGapMaterial(): THREE.MeshBasicMaterial {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    const bg = ctx.createRadialGradient(size * 0.5, size * 0.45, 0, size * 0.5, size * 0.55, size * 0.72);
+    bg.addColorStop(0, '#2d5f90');
+    bg.addColorStop(0.52, '#14314f');
+    bg.addColorStop(1, '#071425');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, size, size);
+
+    for (let i = 0; i < 170; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const r = Math.random() < 0.88 ? Math.random() * 1.1 + 0.35 : Math.random() * 2.4 + 1.1;
+      const alpha = Math.random() * 0.35 + 0.22;
+      ctx.fillStyle = `rgba(210,230,255,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (let i = 0; i < 7; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, 32 + Math.random() * 24);
+      glow.addColorStop(0, 'rgba(118,202,255,0.28)');
+      glow.addColorStop(0.35, 'rgba(80,165,255,0.13)');
+      glow.addColorStop(1, 'rgba(30,20,90,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, size, size);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1.4, 1.4);
+    texture.anisotropy = 4;
+
+    return new THREE.MeshBasicMaterial({
+      map: texture,
+      color: 0x86bfff,
+      transparent: true,
+      opacity: 0.82,
+      side: THREE.DoubleSide,
+    });
+  }
+
+  private static makeWallMaterial(): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({
+      color: TunnelChunk.BASE_COLOR,
+      roughness: 0.88,
+      metalness: 0.02,
+    });
   }
 
   private addLightStrips(): void {
@@ -161,7 +220,7 @@ export class TunnelChunk {
     const len = g.zEnd - g.zStart;
     const half = CONFIG.tunnel.size / 2;
     const pitInset = 0.01;
-    const pitMat = new THREE.MeshBasicMaterial({ color: TunnelChunk.GAP_COLOR });
+    const pitMat = TunnelChunk.GAP_MATERIAL;
     const meshes: THREE.Mesh[] = [];
     const zCenter = (g.zStart + g.zEnd) / 2;
 

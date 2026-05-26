@@ -28,6 +28,7 @@ export class Renderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
+    this.renderer.domElement.style.filter = 'blur(0.35px) saturate(1.08)';
     host.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();

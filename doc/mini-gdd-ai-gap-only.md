@@ -162,16 +162,6 @@ gap 定义:
 - 玩家若在该区间没有安全支撑则继续下落
 - 下落超出隧道容许范围则 game_over
 
-明确删除:
-- coin
-- obstacle
-- speed_pad
-- shield
-- boss
-- special_stage
-- pickup
-- combo
-- multiplier
 
 ## 10. generation_rules
 生成必须极简。

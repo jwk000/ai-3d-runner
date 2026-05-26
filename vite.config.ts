@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+const githubPagesBase = '/ai-3d-runner/';
+
+export default defineConfig(({ mode }) => ({
+  base: mode === 'pages' ? githubPagesBase : '/',
   server: {
     port: 5173,
     open: true,
@@ -9,4 +12,4 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
   },
-});
+}));

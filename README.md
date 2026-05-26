@@ -1,78 +1,148 @@
-# Gap Runner — Minimal 3D Tunnel Runner
+# Gap Runner — 极简 3D 方形隧道跑酷
 
-A minimal 3D tunnel runner built around one core idea: run forward inside a 4-face square tunnel, switch between 3 lanes, and rotate the whole tunnel 90° when you jump and push past an edge lane.
+这是一个基于 **Three.js + TypeScript + Vite** 开发的极简 3D 跑酷原型。玩家会在一个持续向前延伸的四面方形隧道中自动奔跑，默认通过左右键切换跑道；当角色处于边缘跑道且已经起跳时，左右键会触发整条隧道旋转 90°，让相邻墙面翻转成新的地面。
 
-> Design docs live in [`doc/`](./doc/). The canonical spec is [`doc/mini-gdd-ai-gap-only.md`](./doc/mini-gdd-ai-gap-only.md).
+项目目标是只保留一条最小可玩的核心循环：**奔跑 → 观察前方空洞 → 切道 / 跳跃 / 空中翻面 → 尽量跑得更远**。
 
-## Quickstart
+> 设计文档位于 [`doc/`](./doc/)，当前唯一有效规格是 [`doc/mini-gdd-ai-gap-only.md`](./doc/mini-gdd-ai-gap-only.md)。
+
+## 功能概览
+
+- 四面方形隧道：地面 / 右墙 / 天花板 / 左墙
+- 当前地面固定 3 条离散跑道
+- 角色自动前进
+- 单次跳跃
+- 空中边缘触发 90° 翻面
+- 仅保留“地面空洞”这一种危险
+- 仅按距离计分
+- 包含开始、暂停、失败与重开流程
+
+## 本地开发
+
+先安装依赖：
 
 ```bash
 pnpm install
-pnpm dev          # → http://127.0.0.1:5173
 ```
 
-Build for production:
+启动开发服务器：
 
 ```bash
-pnpm build        # → dist/
-pnpm preview      # serve the built bundle
+pnpm dev
 ```
 
-## Controls
+默认会打开本地地址：`http://127.0.0.1:5173`
 
-| Key | Action |
-|---|---|
-| `←` / `A` | Step left lane · on left edge while airborne: rotate tunnel |
-| `→` / `D` | Step right lane · on right edge while airborne: rotate tunnel |
-| `Space` | Jump |
-| `Esc` | Pause / resume |
+## 构建与预览
 
-The directional keys are context-sensitive: in the middle of the floor they change lane; on an edge, they flip the whole tunnel so an adjacent wall becomes the new floor.
+普通生产构建：
 
-## Current game scope
+```bash
+pnpm build
+```
 
-- Four-faced tunnel: floor / right / ceiling / left
-- Three discrete lanes on the current face
-- Auto-run forward
-- Single jump
-- Airborne edge-triggered 90° tunnel rotation
-- Gaps as the only hazard
-- Distance-only scoring
-- Main menu, pause, and restart flow
+构建产物输出到：`dist/`
 
-## Explicitly not included
+本地预览生产包：
 
-- Coins
-- Obstacles
-- Speed pads
-- Boss segments
-- Combo or meta systems
-- Audio pipeline and external asset planning
-- Legacy roadmap and production-scale design scope
+```bash
+pnpm preview
+```
 
-## Project layout
+## GitHub Pages 构建与发布
+
+这个仓库已经补充了 GitHub Pages 所需的两部分支持：
+
+1. **Pages 专用构建脚本**：自动使用仓库子路径 ` /ai-3d-runner/ ` 作为资源基础路径。
+2. **GitHub Actions 发布工作流**：推送到默认分支后，可以自动构建并部署 `dist/` 到 GitHub Pages。
+
+### 本地构建 GitHub Pages 版本
+
+如果你想先在本地验证 Pages 版本的资源路径，可以运行：
+
+```bash
+pnpm build:pages
+pnpm preview:pages
+```
+
+其中：
+
+- `build:pages` 会使用 GitHub Pages 所需的仓库子路径构建
+- `preview:pages` 会先执行 `build:pages`，再启动本地预览
+
+启动 `preview:pages` 之后，请优先打开带仓库子路径的地址，例如：
+
+```text
+http://127.0.0.1:4173/ai-3d-runner/
+```
+
+如果你只打开根路径 `/`，看到的结果可能和 GitHub Pages 的实际访问路径不一致。
+
+### 启用自动发布
+
+1. 将仓库推送到 GitHub。
+2. 进入仓库的 **Settings → Pages**。
+3. 在 **Build and deployment** 里选择 **Source: GitHub Actions**。
+4. 确保默认分支包含本仓库中的 `.github/workflows/deploy-pages.yml`。
+5. 之后每次推送到默认分支，GitHub 都会自动构建并发布站点。
+
+发布成功后，页面地址通常是：
+
+```text
+https://jwk000.github.io/ai-3d-runner/
+```
+
+> 如果你之后修改了仓库名，需要同步更新 `vite.config.ts` 里的 `githubPagesBase`。
+> 如果本地第一次安装依赖时遇到 `ERR_PNPM_IGNORED_BUILDS`，先检查仓库里的 `pnpm-workspace.yaml` 是否已经允许 `esbuild` 执行构建脚本。
+
+## 操作方式
+
+| 按键 | 功能 |
+| --- | --- |
+| `←` / `A` | 向左切道；若角色已在左边缘且处于空中，则触发向左翻面 |
+| `→` / `D` | 向右切道；若角色已在右边缘且处于空中，则触发向右翻面 |
+| `Space` | 跳跃 |
+| `Esc` | 暂停 / 继续 |
+
+左右键是上下文相关输入：
+
+- 正常情况下用于切换跑道
+- 在边缘跑道并且角色已经起跳时，用于让整条隧道翻面
+
+## 当前玩法范围
+
+- 四面隧道
+- 三条跑道
+- 自动前进
+- 单次跳跃
+- 空中边缘翻面
+- 地面空洞
+- 距离计分
+- 暂停、失败、重开
+
+## 项目结构
 
 ```text
 src/
-├── main.ts                     # bootstrap
-├── config.ts                   # tuning constants for tunnel/player/camera
+├── main.ts                     # 程序入口
+├── config.ts                   # 隧道、角色、镜头等调参常量
 ├── engine/
-│   ├── Engine.ts               # fixed-step main loop
-│   ├── Renderer.ts             # Three.js wrapper with WebGL fail handling
-│   └── Input.ts                # keyboard → action mapping
+│   ├── Engine.ts               # 固定步长主循环
+│   ├── Renderer.ts             # Three.js 渲染包装与 WebGL 失败处理
+│   └── Input.ts                # 键盘输入映射
 ├── game/
-│   ├── Game.ts                 # gameplay loop, phase flow, input routing
-│   ├── GameState.ts            # distance / elapsed / phase
-│   ├── Player.ts               # movement, jump, lane transitions, run anim
-│   ├── Camera.ts               # third-person follow camera
-│   ├── Collision.ts            # gap-only failure checks
+│   ├── Game.ts                 # 游戏流程与主玩法逻辑
+│   ├── GameState.ts            # 距离、时间、阶段状态
+│   ├── Player.ts               # 移动、跳跃、切道、跑步动画
+│   ├── Camera.ts               # 第三人称跟随镜头
+│   ├── Collision.ts            # 空洞失败判定
 │   └── Tunnel/
-│       ├── TunnelManager.ts    # chunk streaming + floating-origin support
-│       ├── TunnelChunk.ts      # tunnel geometry + gap rendering
-│       ├── ChunkGenerator.ts   # gap-only procedural generation
-│       └── Rotator.ts          # 90° tunnel rotation
+│       ├── TunnelManager.ts    # 隧道分块流式管理
+│       ├── TunnelChunk.ts      # 隧道几何与空洞渲染
+│       ├── ChunkGenerator.ts   # 极简程序化生成
+│       └── Rotator.ts          # 90° 翻面逻辑
 ├── ui/
-│   └── HUD.ts                  # distance HUD + banners + toast
+│   └── HUD.ts                  # HUD、提示与横幅
 └── util/
     ├── math.ts
     ├── PRNG.ts
@@ -83,17 +153,25 @@ doc/
 └── mini-gdd-ai-gap-only.md
 ```
 
-## Tech stack
+## 技术栈
 
-- **Three.js r160** — WebGL rendering
-- **TypeScript 5.4** strict
-- **Vite 5** — dev server + bundler
+- **Three.js r160**：WebGL 渲染
+- **TypeScript 5.4**：严格类型检查
+- **Vite 5**：开发服务器与生产构建
+- **pnpm**：依赖管理
 
-## Verified status
+## 校验状态
 
-- ✅ `tsc --noEmit` clean
-- ✅ `vite build` succeeds
+完成这轮改动后，建议至少验证以下命令：
 
-## License
+```bash
+pnpm typecheck
+pnpm build
+pnpm build:pages
+```
 
-CC0 / public domain for the code in this repository.
+如果你准备正式发布，再到 GitHub Actions 页面确认部署任务成功。
+
+## 许可证
+
+本仓库代码采用 **CC0 / Public Domain**。
