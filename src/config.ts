@@ -1,7 +1,7 @@
 export const CONFIG = {
   tunnel: {
     // 方形隧道的边长
-    size: 10,
+    size: 9,
     // 当前地面上的跑道数量
     laneCount: 3,
     // 三条跑道相对中心线的横向偏移

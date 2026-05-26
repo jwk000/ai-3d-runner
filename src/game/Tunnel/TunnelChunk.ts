@@ -214,7 +214,7 @@ export class TunnelChunk {
     });
     const lineWidth = 0.06;
     const inset = 0.003;
-    const dividerPositions = [-1.5, 1.5];
+    const dividerPositions = laneDividerPositions();
     const floorCeilLineGeo = new THREE.PlaneGeometry(lineWidth, length * 0.98);
     const sideWallLineGeo = new THREE.PlaneGeometry(length * 0.98, lineWidth);
 
@@ -274,28 +274,31 @@ export class TunnelChunk {
     const zCenter = (g.zStart + g.zEnd) / 2;
 
     for (const run of gapLaneRuns(g.laneMask)) {
-      const { centerLane, centerOffset, width } = laneRunLayout(run.start, run.end);
-      const { x, y } = lanePosition(g.face, centerLane);
-      const geometry = new THREE.PlaneGeometry(width, len);
+      const { center, width } = laneRunLayout(run.start, run.end);
+      const { x, y } = surfacePosition(g.face, center);
+      const geometry =
+        g.face === 1 || g.face === 3
+          ? new THREE.PlaneGeometry(len, width)
+          : new THREE.PlaneGeometry(width, len);
       scaleGapUv(geometry, width, len);
       const mesh = new THREE.Mesh(geometry, pitMat);
       mesh.onBeforeRender = () => TunnelChunk.updatePortalTime();
       switch (g.face) {
         case 0:
           mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(x + centerOffset, -half + pitInset, zCenter);
+          mesh.position.set(x, -half + pitInset, zCenter);
           break;
         case 1:
           mesh.rotation.y = -Math.PI / 2;
-          mesh.position.set(half - pitInset, y + centerOffset, zCenter);
+          mesh.position.set(half - pitInset, y, zCenter);
           break;
         case 2:
           mesh.rotation.x = Math.PI / 2;
-          mesh.position.set(x - centerOffset, half - pitInset, zCenter);
+          mesh.position.set(x, half - pitInset, zCenter);
           break;
         case 3:
           mesh.rotation.y = Math.PI / 2;
-          mesh.position.set(-half + pitInset, y - centerOffset, zCenter);
+          mesh.position.set(-half + pitInset, y, zCenter);
           break;
       }
       this.group.add(mesh);
@@ -353,39 +356,62 @@ export class TunnelChunk {
 }
 
 export function lanePosition(face: FaceIndex, lane: LaneIndex): { x: number; y: number } {
-  const off = CONFIG.tunnel.laneOffsets[lane];
+  return surfacePosition(face, CONFIG.tunnel.laneOffsets[lane]);
+}
+
+function surfacePosition(face: FaceIndex, lateralOffset: number): { x: number; y: number } {
   const half = CONFIG.tunnel.size / 2;
   switch (face) {
     case 0:
-      return { x: off, y: -half };
+      return { x: lateralOffset, y: -half };
     case 1:
-      return { x: half, y: off };
+      return { x: half, y: lateralOffset };
     case 2:
-      return { x: -off, y: half };
+      return { x: -lateralOffset, y: half };
     case 3:
-      return { x: -half, y: -off };
+      return { x: -half, y: -lateralOffset };
   }
 }
 
-function laneSpan(): number {
+function laneSpacing(): number {
   const offsets = CONFIG.tunnel.laneOffsets;
-  const laneWidth = Math.abs(offsets[0] - offsets[1]);
-  const edgeMargin = Math.max(0.5, (CONFIG.tunnel.size - laneWidth * CONFIG.tunnel.laneCount) / 2);
-  return laneWidth - edgeMargin * 0.35;
+  return Math.abs(offsets[0] - offsets[1]);
 }
 
-function laneRunLayout(start: LaneIndex, end: LaneIndex): { centerLane: LaneIndex; centerOffset: number; width: number } {
-  const offsets = CONFIG.tunnel.laneOffsets;
-  const startOffset = offsets[start];
-  const endOffset = offsets[end];
-  const center = (startOffset + endOffset) * 0.5;
-  const centerLane = ((start + end) / 2) as LaneIndex;
-  const laneCount = end - start + 1;
-  const width = laneCount * laneSpan();
+function laneDividerPositions(): number[] {
+  const orderedOffsets = [...CONFIG.tunnel.laneOffsets].sort((a, b) => a - b);
+  const dividers: number[] = [];
+  for (let i = 0; i < orderedOffsets.length - 1; i++) {
+    dividers.push((orderedOffsets[i]! + orderedOffsets[i + 1]!) * 0.5);
+  }
+  return dividers;
+}
+
+function laneBounds(lane: LaneIndex): { min: number; max: number } {
+  const half = CONFIG.tunnel.size / 2;
+  const orderedLanes = ([0, 1, 2] as LaneIndex[]).sort(
+    (a, b) => CONFIG.tunnel.laneOffsets[a] - CONFIG.tunnel.laneOffsets[b],
+  );
+  const laneOrder = orderedLanes.indexOf(lane);
+  const boundaries = [-half, ...laneDividerPositions(), half];
   return {
-    centerLane,
-    centerOffset: center - offsets[centerLane],
-    width,
+    min: boundaries[laneOrder]!,
+    max: boundaries[laneOrder + 1]!,
+  };
+}
+
+function laneRunLayout(start: LaneIndex, end: LaneIndex): { center: number; width: number } {
+  const offsets = CONFIG.tunnel.laneOffsets;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (let lane = start; lane <= end; lane++) {
+    const bounds = laneBounds(lane as LaneIndex);
+    min = Math.min(min, bounds.min);
+    max = Math.max(max, bounds.max);
+  }
+  return {
+    center: (offsets[start] + offsets[end]) * 0.5,
+    width: max - min,
   };
 }
 
@@ -411,7 +437,7 @@ function gapLaneRuns(mask: LaneMask): Array<{ start: LaneIndex; end: LaneIndex }
 
 function scaleGapUv(geometry: THREE.PlaneGeometry, width: number, length: number): void {
   const uv = geometry.getAttribute('uv');
-  const laneUnit = Math.max(0.001, laneSpan());
+  const laneUnit = Math.max(0.001, laneSpacing());
   const widthRepeat = Math.max(1, width / laneUnit);
   const lengthRepeat = Math.max(1, length / 5);
   for (let i = 0; i < uv.count; i++) {

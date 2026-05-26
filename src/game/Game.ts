@@ -53,6 +53,7 @@ export class Game {
     this.engine.start();
     this.hud.show();
     this.showMenu();
+    this.player.resetForRun(12);
   }
 
   private showMenu(): void {

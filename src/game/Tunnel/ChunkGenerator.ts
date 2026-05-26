@@ -23,7 +23,7 @@ export interface GenerateOptions {
 }
 
 const FACES: readonly FaceIndex[] = [0, 1, 2, 3];
-const GAP_MIN_LEN = 4.2;
+const GAP_MIN_LEN = 3.1;
 const GAP_MAX_LEN = 6.1;
 const GAP_MAX_SPACING = 5;
 const GAP_MIN_SPACING = 1.5;
