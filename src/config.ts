@@ -36,55 +36,45 @@ export const CONFIG = {
     height: 0.6,
     // 角色碰撞深度
     depth: 0.15,
-    trail: {
-      // 同时保留的拖尾粒子总数
-      particleCount: 36,
+    dust: {
+      // 同时保留的脚底尘土粒子总数
+      particleCount: 28,
       // 粒子最短生命周期（秒）
-      lifeMin: 0.28,
+      lifeMin: 0.2,
       // 粒子最长生命周期（秒）
-      lifeMax: 0.58,
+      lifeMax: 0.42,
       // 发射率速度缩放的最小系数
-      speedFactorMin: 0.7,
+      speedFactorMin: 0.6,
       // 发射率速度缩放的最大系数
-      speedFactorMax: 1.25,
-      // 落地状态每秒发射粒子数
-      emissionRateGrounded: 33,
-      // 空中状态每秒发射粒子数
-      emissionRateAir: 26,
-      // 落地状态粒子衰减透明度上限
-      alphaGrounded: 0.32,
-      // 空中状态粒子衰减透明度上限
-      alphaAir: 0.24,
-      // 落地状态粒子出生透明度
-      spawnAlphaGrounded: 0.42,
-      // 空中状态粒子出生透明度
-      spawnAlphaAir: 0.3,
+      speedFactorMax: 1.2,
+      // 落地奔跑时每秒发射粒子数
+      emissionRateGrounded: 24,
+      // 粒子衰减透明度上限
+      alpha: 0.24,
+      // 粒子出生透明度
+      spawnAlpha: 0.34,
       // 粒子衰减后的基础尺寸
-      scaleMin: 4,
+      scaleMin: 5,
       // 粒子从出生到衰减的尺寸增量
-      scaleGain: 8,
-      // 空中状态粒子尺寸缩放系数
-      scaleAirMultiplier: 0.88,
+      scaleGain: 7,
       // 粒子出生瞬间的初始尺寸
-      spawnScale: 8,
-      // 向后拖拽的基础速度
-      backwardBase: 2.5,
+      spawnScale: 7,
+      // 向后带出的基础速度
+      backwardBase: 1.15,
       // 受角色速度影响的最小后向速度系数
-      backwardSpeedMin: 0.08,
+      backwardSpeedMin: 0.04,
       // 后向速度随机扰动增量
-      backwardSpeedGain: 0.1,
+      backwardSpeedGain: 0.07,
       // 横向散开的基础速度
-      lateralBase: 0.11,
+      lateralBase: 0.08,
       // 横向散开的随机扰动幅度
-      lateralJitter: 0.08,
-      // 法线对横向散开速度的影响
-      lateralNormalInfluence: 0.52,
-      // 法线对前后速度的影响
-      depthNormalInfluence: 0.2,
-      // 落地时的向上抬升速度
-      liftGrounded: 0.05,
-      // 空中时的向上抬升速度
-      liftAir: 0.1,
+      lateralJitter: 0.1,
+      // 向上扬起的基础速度
+      liftBase: 0.28,
+      // 向上扬起的随机扰动幅度
+      liftJitter: 0.12,
+      // 向前后深度方向的随机扰动幅度
+      depthJitter: 0.08,
       // 点精灵透视缩放基准
       pointSizePerspective: 180,
       // 点精灵裁切半径
@@ -93,28 +83,20 @@ export const CONFIG = {
       pointFadeInner: 0.03,
       // 点精灵边缘完全衰减的位置
       pointFadeOuter: 0.25,
-      // 身体采样球的基础半径
-      bodyRadius: 0.42,
-      // 身体采样在 X 方向的缩放
-      bodyScaleX: 1.08,
-      // 身体采样在 Y 方向的缩放
-      bodyScaleY: 1.02,
-      // 身体采样在 Z 方向的缩放
-      bodyScaleZ: 0.92,
-      // 身体采样球心的基础高度
-      bodyCenterY: 0.52,
-      // 重置粒子时的默认 Z 偏移
-      resetOffsetZ: -0.18,
-      // 后半球采样允许的最靠后法线 Z
-      rearHemisphereMinZ: -0.82,
-      // 后半球采样允许的最靠前法线 Z，用于阻止前半身出粒子
-      rearHemisphereMaxZ: -0.08,
+      // 左右脚底相对腿部根节点的横向偏移微调
+      footOffsetX: 0.02,
+      // 脚底相对腿部根节点的高度偏移
+      footOffsetY: -0.34,
+      // 脚底相对腿部根节点的前后偏移
+      footOffsetZ: 0.03,
+      // 重置粒子时的默认高度
+      resetY: -0.18,
       // 粒子中心亮部颜色
-      colorBright: [1, 0.56, 0.16] as const,
+      colorBright: [0.8, 0.72, 0.56] as const,
       // 粒子主体颜色
-      colorMid: [1, 0.48, 0.11] as const,
+      colorMid: [0.58, 0.5, 0.37] as const,
       // 粒子边缘与衰减暗部颜色
-      colorDark: [0.86, 0.29, 0.06] as const,
+      colorDark: [0.33, 0.28, 0.21] as const,
     },
   },
   camera: {

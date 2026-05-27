@@ -47,20 +47,20 @@ export class Player {
   private armR!: THREE.Mesh;
   private legL!: THREE.Mesh;
   private legR!: THREE.Mesh;
-  private trailPoints!: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
-  private trailGeometry!: THREE.BufferGeometry;
-  private trailMaterial!: THREE.ShaderMaterial;
-  private trailPositions!: Float32Array;
-  private trailScales!: Float32Array;
-  private trailAlphas!: Float32Array;
-  private trailVelocities!: Float32Array;
-  private trailAges!: Float32Array;
-  private trailLives!: Float32Array;
-  private trailSeedCursor = 0;
-  private trailSpawnAccumulator = 0;
+  private dustPoints!: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  private dustGeometry!: THREE.BufferGeometry;
+  private dustMaterial!: THREE.ShaderMaterial;
+  private dustPositions!: Float32Array;
+  private dustScales!: Float32Array;
+  private dustAlphas!: Float32Array;
+  private dustVelocities!: Float32Array;
+  private dustAges!: Float32Array;
+  private dustLives!: Float32Array;
+  private dustSeedCursor = 0;
+  private dustSpawnAccumulator = 0;
 
   private readonly surfaceBase = CONFIG.tunnel.size / 2;
-  private readonly trailConfig = CONFIG.player.trail;
+  private readonly dustConfig = CONFIG.player.dust;
 
   constructor() {
     this.root = new THREE.Group();
@@ -133,7 +133,7 @@ export class Player {
     this.legR = legR;
     this.visualRoot.add(legR);
 
-    this.buildTrail();
+    this.buildDust();
   }
 
   setLaneInstant(lane: LaneIndex): void {
@@ -180,7 +180,7 @@ export class Player {
     this.setFaceInstant(0);
     this.setLaneInstant(1);
     this.setSpeed(CONFIG.player.startSpeed);
-    this.resetTrail();
+    this.resetDust();
   }
 
   jump(): void {
@@ -210,7 +210,7 @@ export class Player {
     this.applySurfaceTransform();
     this.visualRoot.rotation.z += dt * 3.6;
     this.visualRoot.rotation.x = lerp(this.visualRoot.rotation.x, -0.75, 0.08);
-    this.updateTrail(dt);
+    this.updateDust(dt);
     return this.localY <= -CONFIG.tunnel.size * 0.65;
   }
 
@@ -282,36 +282,36 @@ export class Player {
       this.legL.position.z = lerp(this.legL.position.z, Player.LEG_BASE_Z + 0.05, 0.2);
       this.legR.position.z = lerp(this.legR.position.z, Player.LEG_BASE_Z + 0.05, 0.2);
     }
-    this.updateTrail(dt);
+    this.updateDust(dt);
   }
 
-  private buildTrail(): void {
-    const count = this.trailConfig.particleCount;
-    this.trailPositions = new Float32Array(count * 3);
-    this.trailVelocities = new Float32Array(count * 3);
-    this.trailScales = new Float32Array(count);
-    this.trailAlphas = new Float32Array(count);
-    this.trailAges = new Float32Array(count);
-    this.trailLives = new Float32Array(count);
+  private buildDust(): void {
+    const count = this.dustConfig.particleCount;
+    this.dustPositions = new Float32Array(count * 3);
+    this.dustVelocities = new Float32Array(count * 3);
+    this.dustScales = new Float32Array(count);
+    this.dustAlphas = new Float32Array(count);
+    this.dustAges = new Float32Array(count);
+    this.dustLives = new Float32Array(count);
 
-    this.trailGeometry = new THREE.BufferGeometry();
-    this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(this.trailPositions, 3));
-    this.trailGeometry.setAttribute('aScale', new THREE.BufferAttribute(this.trailScales, 1));
-    this.trailGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(this.trailAlphas, 1));
+    this.dustGeometry = new THREE.BufferGeometry();
+    this.dustGeometry.setAttribute('position', new THREE.BufferAttribute(this.dustPositions, 3));
+    this.dustGeometry.setAttribute('aScale', new THREE.BufferAttribute(this.dustScales, 1));
+    this.dustGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(this.dustAlphas, 1));
 
-    this.trailMaterial = new THREE.ShaderMaterial({
+    this.dustMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       uniforms: {
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
-        uPointSizePerspective: { value: this.trailConfig.pointSizePerspective },
-        uPointDiscardRadius: { value: this.trailConfig.pointDiscardRadius },
-        uPointFadeInner: { value: this.trailConfig.pointFadeInner },
-        uPointFadeOuter: { value: this.trailConfig.pointFadeOuter },
-        uTrailColorBright: { value: new THREE.Vector3(...this.trailConfig.colorBright) },
-        uTrailColorMid: { value: new THREE.Vector3(...this.trailConfig.colorMid) },
-        uTrailColorDark: { value: new THREE.Vector3(...this.trailConfig.colorDark) },
+        uPointSizePerspective: { value: this.dustConfig.pointSizePerspective },
+        uPointDiscardRadius: { value: this.dustConfig.pointDiscardRadius },
+        uPointFadeInner: { value: this.dustConfig.pointFadeInner },
+        uPointFadeOuter: { value: this.dustConfig.pointFadeOuter },
+        uDustColorBright: { value: new THREE.Vector3(...this.dustConfig.colorBright) },
+        uDustColorMid: { value: new THREE.Vector3(...this.dustConfig.colorMid) },
+        uDustColorDark: { value: new THREE.Vector3(...this.dustConfig.colorDark) },
       },
       vertexShader: `
         attribute float aScale;
@@ -332,9 +332,9 @@ export class Player {
         uniform float uPointDiscardRadius;
         uniform float uPointFadeInner;
         uniform float uPointFadeOuter;
-        uniform vec3 uTrailColorBright;
-        uniform vec3 uTrailColorMid;
-        uniform vec3 uTrailColorDark;
+        uniform vec3 uDustColorBright;
+        uniform vec3 uDustColorMid;
+        uniform vec3 uDustColorDark;
 
         void main() {
           vec2 centered = gl_PointCoord - vec2(0.5);
@@ -342,136 +342,132 @@ export class Player {
           if (dist > uPointDiscardRadius) discard;
 
           float radial = 1.0 - smoothstep(uPointFadeInner, uPointFadeOuter, dist);
-          vec3 color = mix(uTrailColorDark, uTrailColorMid, radial);
-          color = mix(color, uTrailColorBright, radial * radial);
+          vec3 color = mix(uDustColorDark, uDustColorMid, radial);
+          color = mix(color, uDustColorBright, radial * radial);
           gl_FragColor = vec4(color, radial * vAlpha);
         }
       `,
     });
 
-    this.trailPoints = new THREE.Points(this.trailGeometry, this.trailMaterial);
-    this.trailPoints.name = 'BodyParticleTrail';
-    this.trailPoints.frustumCulled = false;
-    this.visualRoot.add(this.trailPoints);
+    this.dustPoints = new THREE.Points(this.dustGeometry, this.dustMaterial);
+    this.dustPoints.name = 'FootDustParticles';
+    this.dustPoints.frustumCulled = false;
+    this.visualRoot.add(this.dustPoints);
 
-    this.resetTrail();
+    this.resetDust();
   }
 
-  private resetTrail(): void {
-    this.trailSeedCursor = 0;
-    this.trailSpawnAccumulator = 0;
-    for (let i = 0; i < this.trailConfig.particleCount; i += 1) {
-      this.trailAges[i] = 1;
-      this.trailLives[i] = 1;
-      this.trailScales[i] = 0;
-      this.trailAlphas[i] = 0;
+  private resetDust(): void {
+    this.dustSeedCursor = 0;
+    this.dustSpawnAccumulator = 0;
+    for (let i = 0; i < this.dustConfig.particleCount; i += 1) {
+      this.dustAges[i] = 1;
+      this.dustLives[i] = 1;
+      this.dustScales[i] = 0;
+      this.dustAlphas[i] = 0;
       const idx = i * 3;
-      this.trailPositions[idx] = 0;
-      this.trailPositions[idx + 1] = this.trailConfig.bodyCenterY;
-      this.trailPositions[idx + 2] = this.trailConfig.resetOffsetZ;
-      this.trailVelocities[idx] = 0;
-      this.trailVelocities[idx + 1] = 0;
-      this.trailVelocities[idx + 2] = 0;
+      this.dustPositions[idx] = 0;
+      this.dustPositions[idx + 1] = this.dustConfig.resetY;
+      this.dustPositions[idx + 2] = 0;
+      this.dustVelocities[idx] = 0;
+      this.dustVelocities[idx + 1] = 0;
+      this.dustVelocities[idx + 2] = 0;
     }
-    this.markTrailAttributesDirty();
+    this.markDustAttributesDirty();
   }
 
-  private updateTrail(dt: number): void {
-    for (let i = 0; i < this.trailConfig.particleCount; i += 1) {
-      this.trailAges[i] += dt;
+  private updateDust(dt: number): void {
+    for (let i = 0; i < this.dustConfig.particleCount; i += 1) {
+      this.dustAges[i] += dt;
       const idx = i * 3;
-      this.trailPositions[idx] += this.trailVelocities[idx] * dt;
-      this.trailPositions[idx + 1] += this.trailVelocities[idx + 1] * dt;
-      this.trailPositions[idx + 2] += this.trailVelocities[idx + 2] * dt;
+      this.dustPositions[idx] += this.dustVelocities[idx] * dt;
+      this.dustPositions[idx + 1] += this.dustVelocities[idx + 1] * dt;
+      this.dustPositions[idx + 2] += this.dustVelocities[idx + 2] * dt;
 
-      const life = this.trailLives[i];
-      const t = life > 0 ? this.trailAges[i] / life : 1;
+      const life = this.dustLives[i];
+      const t = life > 0 ? this.dustAges[i] / life : 1;
       const fade = 1 - clamp(t, 0, 1);
-      const alphaBase = this.isGrounded ? this.trailConfig.alphaGrounded : this.trailConfig.alphaAir;
-      this.trailAlphas[i] = fade * fade * alphaBase;
-      this.trailScales[i] =
-        (this.trailConfig.scaleMin + fade * this.trailConfig.scaleGain) *
-        (this.isGrounded ? 1 : this.trailConfig.scaleAirMultiplier);
+      this.dustAlphas[i] = fade * fade * this.dustConfig.alpha;
+      this.dustScales[i] = this.dustConfig.scaleMin + fade * this.dustConfig.scaleGain;
     }
 
-    const speedFactor = clamp(
-      this.speed / Math.max(CONFIG.player.maxSpeed, 0.001),
-      this.trailConfig.speedFactorMin,
-      this.trailConfig.speedFactorMax,
-    );
-    const emissionRate =
-      (this.isGrounded ? this.trailConfig.emissionRateGrounded : this.trailConfig.emissionRateAir) * speedFactor;
-    this.trailSpawnAccumulator += dt * emissionRate;
-    while (this.trailSpawnAccumulator >= 1) {
-      this.respawnTrailParticle(this.trailSeedCursor % this.trailConfig.particleCount);
-      this.trailSeedCursor += 1;
-      this.trailSpawnAccumulator -= 1;
+    if (this.isGrounded && this.speed > 0.05) {
+      const speedFactor = clamp(
+        this.speed / Math.max(CONFIG.player.maxSpeed, 0.001),
+        this.dustConfig.speedFactorMin,
+        this.dustConfig.speedFactorMax,
+      );
+      this.dustSpawnAccumulator += dt * this.dustConfig.emissionRateGrounded * speedFactor;
+      while (this.dustSpawnAccumulator >= 1) {
+        this.respawnDustParticle(this.dustSeedCursor % this.dustConfig.particleCount);
+        this.dustSeedCursor += 1;
+        this.dustSpawnAccumulator -= 1;
+      }
     }
 
-    this.markTrailAttributesDirty();
+    this.markDustAttributesDirty();
   }
 
-  private respawnTrailParticle(index: number): void {
-    const sample = this.sampleBodySurface(index + this.trailSeedCursor);
-    const lifeT = this.noise(index * 13.17 + this.trailSeedCursor * 0.37);
-    const life = lerp(this.trailConfig.lifeMin, this.trailConfig.lifeMax, lifeT);
+  private respawnDustParticle(index: number): void {
+    const foot = this.sampleFootDustOrigin(index + this.dustSeedCursor);
+    const lifeT = this.noise(index * 13.17 + this.dustSeedCursor * 0.37);
+    const life = lerp(this.dustConfig.lifeMin, this.dustConfig.lifeMax, lifeT);
     const idx = index * 3;
 
-    this.trailAges[index] = 0;
-    this.trailLives[index] = life;
-    this.trailPositions[idx] = sample.x;
-    this.trailPositions[idx + 1] = sample.y;
-    this.trailPositions[idx + 2] = sample.z;
+    this.dustAges[index] = 0;
+    this.dustLives[index] = life;
+    this.dustPositions[idx] = foot.x;
+    this.dustPositions[idx + 1] = foot.y;
+    this.dustPositions[idx + 2] = foot.z;
 
     const backward =
-      this.trailConfig.backwardBase +
+      this.dustConfig.backwardBase +
       this.speed *
-        (this.trailConfig.backwardSpeedMin +
-          this.trailConfig.backwardSpeedGain * this.noise(index * 4.13 + 3.1));
+        (this.dustConfig.backwardSpeedMin +
+          this.dustConfig.backwardSpeedGain * this.noise(index * 4.13 + 3.1));
     const lateral =
-      this.trailConfig.lateralBase +
-      this.trailConfig.lateralJitter * this.noise(index * 7.91 + 1.7);
-    const lift = this.isGrounded ? this.trailConfig.liftGrounded : this.trailConfig.liftAir;
-    this.trailVelocities[idx] = sample.normal.x * lateral * this.trailConfig.lateralNormalInfluence;
-    this.trailVelocities[idx + 1] = sample.normal.y * lateral + lift;
-    this.trailVelocities[idx + 2] = -backward + sample.normal.z * lateral * this.trailConfig.depthNormalInfluence;
+      this.dustConfig.lateralBase +
+      this.dustConfig.lateralJitter * this.signedNoise(index * 7.91 + 1.7);
+    const lift =
+      this.dustConfig.liftBase +
+      this.dustConfig.liftJitter * this.noise(index * 5.31 + 0.9);
+    const depthJitter = this.dustConfig.depthJitter * this.signedNoise(index * 9.47 + 2.4);
+    this.dustVelocities[idx] = lateral;
+    this.dustVelocities[idx + 1] = lift;
+    this.dustVelocities[idx + 2] = -backward + depthJitter;
 
-    this.trailScales[index] = this.trailConfig.spawnScale;
-    this.trailAlphas[index] = this.isGrounded
-      ? this.trailConfig.spawnAlphaGrounded
-      : this.trailConfig.spawnAlphaAir;
+    this.dustScales[index] = this.dustConfig.spawnScale;
+    this.dustAlphas[index] = this.dustConfig.spawnAlpha;
   }
 
-  private sampleBodySurface(seed: number): { x: number; y: number; z: number; normal: THREE.Vector3 } {
-    const u = this.noise(seed * 0.754 + 0.13);
-    const v = this.noise(seed * 1.173 + 2.41);
-    const theta = u * Math.PI * 2;
-    const z = lerp(this.trailConfig.rearHemisphereMinZ, this.trailConfig.rearHemisphereMaxZ, v);
-    const radial = Math.sqrt(Math.max(0, 1 - z * z));
+  private sampleFootDustOrigin(seed: number): { x: number; y: number; z: number } {
+    const useLeftFoot = Math.sin(this.runPhase) >= 0;
+    const leg = useLeftFoot ? this.legL : this.legR;
+    const lateralSide = useLeftFoot ? -1 : 1;
+    const xJitter = this.signedNoise(seed * 0.73 + 0.11) * 0.035;
+    const yJitter = this.noise(seed * 1.31 + 0.47) * 0.035;
+    const zJitter = this.signedNoise(seed * 1.79 + 1.07) * 0.045;
 
-    const normal = new THREE.Vector3(
-      Math.cos(theta) * radial,
-      z,
-      Math.sin(theta) * radial,
-    ).normalize();
-
-    const radius = this.trailConfig.bodyRadius;
-    const x = normal.x * radius * this.trailConfig.bodyScaleX;
-    const y = this.trailConfig.bodyCenterY + normal.y * radius * this.trailConfig.bodyScaleY;
-    const zPos = normal.z * radius * this.trailConfig.bodyScaleZ;
-
-    return { x, y, z: zPos, normal };
+    return {
+      x: leg.position.x + lateralSide * this.dustConfig.footOffsetX + xJitter,
+      y: leg.position.y + this.dustConfig.footOffsetY + yJitter,
+      z: leg.position.z + this.dustConfig.footOffsetZ + zJitter,
+    };
   }
 
-  private markTrailAttributesDirty(): void {
-    this.trailGeometry.attributes.position.needsUpdate = true;
-    this.trailGeometry.attributes.aScale.needsUpdate = true;
-    this.trailGeometry.attributes.aAlpha.needsUpdate = true;
+  private markDustAttributesDirty(): void {
+    this.dustGeometry.attributes.position.needsUpdate = true;
+    this.dustGeometry.attributes.aScale.needsUpdate = true;
+    this.dustGeometry.attributes.aAlpha.needsUpdate = true;
   }
 
   private noise(seed: number): number {
     const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
     return x - Math.floor(x);
+  }
+
+  private signedNoise(seed: number): number {
+    return this.noise(seed) * 2 - 1;
   }
 
   worldZ(): number {

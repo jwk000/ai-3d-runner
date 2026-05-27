@@ -210,7 +210,10 @@ export class Game {
     this.player.advance(dt * advanceFactor);
     this.rotator.update(dt);
 
-    this.tunnel.maybeRebase(this.player);
+    const rebaseShift = this.tunnel.maybeRebase(this.player);
+    if (rebaseShift !== 0) {
+      this.camera.snapToPlayer();
+    }
     const playerZ = this.player.worldZ();
     this.state.distance = playerZ + this.tunnel.worldOffsetZ;
     this.tunnel.update(playerZ, this.state.difficulty());

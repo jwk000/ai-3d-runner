@@ -12,10 +12,7 @@ export class FollowCamera {
   private playerWorld = new THREE.Vector3();
 
   constructor(private camera: THREE.PerspectiveCamera, private playerRoot: THREE.Object3D) {
-    const [ox, oy, oz] = CONFIG.camera.offset;
-    playerRoot.getWorldPosition(this.playerWorld);
-    this.current.set(this.playerWorld.x + ox, this.playerWorld.y + oy, this.playerWorld.z + oz);
-    this.currentLook.copy(this.playerWorld);
+    this.snapToPlayer();
     // v0.5 fix: camera up is ALWAYS world-Y. Previously we set up=(-sin,cos,0)
     // which made the camera roll WITH the tunnel during/after rotation. Because
     // Rotator.getStableAngle() returns the accumulated angle when idle, that
@@ -27,6 +24,17 @@ export class FollowCamera {
     camera.up.set(0, 1, 0);
     camera.position.copy(this.current);
     camera.lookAt(this.currentLook);
+  }
+
+  snapToPlayer(): void {
+    const [ox, oy, oz] = CONFIG.camera.offset;
+    const [lx, ly, lz] = CONFIG.camera.lookAtOffset;
+
+    this.playerRoot.getWorldPosition(this.playerWorld);
+    this.current.set(this.playerWorld.x + ox, this.playerWorld.y + oy, this.playerWorld.z + oz);
+    this.currentLook.set(this.playerWorld.x + lx, this.playerWorld.y + ly, this.playerWorld.z + lz);
+    this.camera.position.copy(this.current);
+    this.camera.lookAt(this.currentLook);
   }
 
   update(dt: number): void {

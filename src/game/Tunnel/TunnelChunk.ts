@@ -231,7 +231,6 @@ export class TunnelChunk {
       const leftLine = new THREE.Mesh(sideWallLineGeo, lineMat);
       leftLine.rotation.y = Math.PI / 2;
       leftLine.position.set(-half + inset, d, length / 2);
-
       this.group.add(floorLine, ceilLine, rightLine, leftLine);
     }
   }
